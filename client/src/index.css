@@ -1,0 +1,39 @@
+
+:root {
+  --app-max-w: 1100px;
+}
+:root {
+  --app-max-w: 1100px;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  /* fall back to sensible defaults so Tailwind utilities aren't required for base styles */
+  background-color: #f8fafc; /* approx. slate-50 */
+  color: #0f172a; /* approx. slate-900 */
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  margin: 0;
+}
+
+.app {
+  max-width: var(--app-max-w);
+  margin-left: auto;
+  margin-right: auto;
+  padding: 1.5rem;
+}
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+.main {
+  background: #ffffff;
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 6px 18px rgba(12,15,22,0.06);
+}
+
