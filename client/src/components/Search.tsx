@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { api } from "../api";
 
 type Tab = "profiles" | "universities" | "courses";
@@ -99,6 +99,21 @@ export default function Search({
     }
   }
 
+  // Auto-search when searchQuery or activeTab changes
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (activeTab === "profiles") {
+        searchProfiles();
+      } else if (activeTab === "universities") {
+        searchUniversities();
+      } else if (activeTab === "courses") {
+        searchCourses();
+      }
+    }, 300); // Debounce for 300ms
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery, activeTab]);
+
   return (
     <div className="max-w-4xl mx-auto">
       <h2 className="text-3xl font-bold text-gray-800 mb-6">Search</h2>
@@ -147,13 +162,6 @@ export default function Search({
             placeholder={`Search ${activeTab}...`}
             className="flex-1 border border-gray-300 px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500"
           />
-          <button
-            type="submit"
-            disabled={loading}
-            className="px-6 py-2 bg-sky-600 text-white rounded-md hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-500 disabled:opacity-50"
-          >
-            {loading ? "Searching..." : "Search"}
-          </button>
         </div>
       </form>
 

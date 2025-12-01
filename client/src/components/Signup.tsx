@@ -33,6 +33,8 @@ export default function Signup({ onShowLogin }: SignupProps) {
 
     try {
       await signup(firstName, lastName, email, password, confirmPassword);
+      // After successful signup, redirect to login page
+      onShowLogin();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Signup failed");
     } finally {
