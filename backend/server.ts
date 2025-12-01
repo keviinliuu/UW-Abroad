@@ -522,6 +522,267 @@ app.get('/posts', async (req: Request, res: Response) => {
 });
 
 
+// ========== UNIVERSITIES ROUTES ==========
+
+// List/search universities with optional filters
+app.get('/universities', async (req: Request, res: Response) => {
+    const { search, country, limit = '50', offset = '0' } = req.query as any;
+    const where: string[] = [];
+    const params: any[] = [];
+    let idx = 1;
+
+    if (search) {
+        where.push(`name ILIKE $${idx++}`);
+        params.push(`%${search}%`);
+    }
+    if (country) {
+        where.push(`country ILIKE $${idx++}`);
+        params.push(`%${country}%`);
+    }
+
+    const whereSQL = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    const query = `SELECT * FROM universities ${whereSQL} ORDER BY name ASC LIMIT $${idx++} OFFSET $${idx++}`;
+    params.push(Number(limit), Number(offset));
+
+    try {
+        const result = await pool.query(query, params);
+        return res.json({ count: result.rowCount, universities: result.rows });
+    } catch (err) {
+        console.error('List universities error', err);
+        return res.status(500).json({ error: 'Query failed', details: String(err) });
+    }
+});
+
+// Get single university with reviews and courses
+app.get('/universities/:id', async (req: Request, res: Response) => {
+    const id = Number(req.params.id);
+    if (!id) return res.status(400).json({ error: 'Invalid university ID' });
+
+    try {
+        // Get university
+        const uni = await pool.query('SELECT * FROM universities WHERE id = $1', [id]);
+        if (!uni.rowCount) return res.status(404).json({ error: 'University not found' });
+
+        // Get reviews with user info
+        const reviews = await pool.query(
+            `SELECT ur.*, u.first_name, u.last_name 
+             FROM university_reviews ur 
+             JOIN users u ON u.id = ur.user_id 
+             WHERE ur.university_id = $1 
+             ORDER BY ur.created_at DESC`,
+            [id]
+        );
+
+        // Get courses offered at this university
+        const courses = await pool.query(
+            `SELECT * FROM courses WHERE university_id = $1 ORDER BY subject_name ASC`,
+            [id]
+        );
+
+        // Calculate average rating
+        const avgRating = reviews.rows.length > 0
+            ? reviews.rows.reduce((sum: number, r: any) => sum + Number(r.rating), 0) / reviews.rows.length
+            : null;
+
+        return res.json({
+            university: uni.rows[0],
+            reviews: reviews.rows,
+            courses: courses.rows,
+            averageRating: avgRating
+        });
+    } catch (err) {
+        console.error('Get university error', err);
+        return res.status(500).json({ error: 'Query failed', details: String(err) });
+    }
+});
+
+// Create university (protected)
+app.post('/universities', authMiddleware, async (req: AuthRequest, res: Response) => {
+    const { name, city, country, description } = req.body;
+    if (!name) return res.status(400).json({ error: 'University name required' });
+
+    try {
+        const result = await pool.query(
+            'INSERT INTO universities (name, city, country, description) VALUES ($1, $2, $3, $4) RETURNING *',
+            [name, city || null, country || null, description || null]
+        );
+        return res.status(201).json(result.rows[0]);
+    } catch (err: any) {
+        if (err.code === '23505') { // Unique violation
+            return res.status(409).json({ error: 'University already exists' });
+        }
+        console.error('Create university error', err);
+        return res.status(500).json({ error: 'Insert failed', details: String(err) });
+    }
+});
+
+// ========== COURSES ROUTES ==========
+
+// List/search courses with optional filters
+app.get('/courses', async (req: Request, res: Response) => {
+    const { search, university_id, limit = '50', offset = '0' } = req.query as any;
+    const where: string[] = [];
+    const params: any[] = [];
+    let idx = 1;
+
+    if (university_id) {
+        where.push(`university_id = $${idx++}`);
+        params.push(Number(university_id));
+    }
+
+    if (search) {
+        where.push(`subject_name ILIKE $${idx++}`);
+        params.push(`%${search}%`);
+    }
+
+    const whereSQL = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    const query = `SELECT * FROM courses ${whereSQL} ORDER BY subject_name ASC LIMIT $${idx++} OFFSET $${idx++}`;
+    params.push(Number(limit), Number(offset));
+
+    try {
+        const result = await pool.query(query, params);
+        return res.json({ count: result.rowCount, courses: result.rows });
+    } catch (err) {
+        console.error('List courses error', err);
+        return res.status(500).json({ error: 'Query failed', details: String(err) });
+    }
+});
+
+// Get single course with reviews and stats
+app.get('/courses/:id', async (req: Request, res: Response) => {
+    const id = Number(req.params.id);
+    if (!id) return res.status(400).json({ error: 'Invalid course ID' });
+
+    try {
+        // Get course with university info
+        const course = await pool.query(
+            `SELECT c.*, u.name as university_name, u.city, u.country
+             FROM courses c
+             JOIN universities u ON u.id = c.university_id
+             WHERE c.id = $1`,
+            [id]
+        );
+        if (!course.rowCount) return res.status(404).json({ error: 'Course not found' });
+
+        // Get reviews with user info
+        const reviews = await pool.query(
+            `SELECT cr.*, u.first_name, u.last_name
+             FROM course_reviews cr
+             JOIN users u ON u.id = cr.user_id
+             WHERE cr.course_id = $1
+             ORDER BY cr.created_at DESC`,
+            [id]
+        );
+
+        // Calculate averages
+        const avgRating = reviews.rows.length > 0
+            ? reviews.rows.reduce((sum: number, r: any) => sum + Number(r.rating), 0) / reviews.rows.length
+            : null;
+        const avgEnjoyability = reviews.rows.length > 0
+            ? reviews.rows.reduce((sum: number, r: any) => sum + Number(r.enjoyability), 0) / reviews.rows.length
+            : null;
+        const avgDifficulty = reviews.rows.length > 0
+            ? reviews.rows.reduce((sum: number, r: any) => sum + Number(r.difficulty), 0) / reviews.rows.length
+            : null;
+
+        return res.json({
+            course: course.rows[0],
+            reviews: reviews.rows,
+            averages: {
+                rating: avgRating,
+                enjoyability: avgEnjoyability,
+                difficulty: avgDifficulty
+            }
+        });
+    } catch (err) {
+        console.error('Get course error', err);
+        return res.status(500).json({ error: 'Query failed', details: String(err) });
+    }
+});
+
+// Create course (protected)
+app.post('/courses', authMiddleware, async (req: AuthRequest, res: Response) => {
+    const { university_id, subject_name, course_code, description } = req.body;
+    if (!university_id || !subject_name) {
+        return res.status(400).json({ error: 'University ID and subject name required' });
+    }
+
+    try {
+        const result = await pool.query(
+            'INSERT INTO courses (university_id, subject_name, course_code, description) VALUES ($1, $2, $3, $4) RETURNING *',
+            [university_id, subject_name, course_code || null, description || null]
+        );
+        return res.status(201).json(result.rows[0]);
+    } catch (err: any) {
+        if (err.code === '23505') {
+            return res.status(409).json({ error: 'Course already exists at this university' });
+        }
+        console.error('Create course error', err);
+        return res.status(500).json({ error: 'Insert failed', details: String(err) });
+    }
+});
+
+// ========== UNIVERSITY REVIEWS ROUTES ==========
+
+// Create university review (protected)
+app.post('/universities/:id/reviews', authMiddleware, [
+    body('rating').isFloat({ min: 1, max: 5 }).withMessage('Rating must be between 1 and 5'),
+    body('review_text').optional().isString()
+], async (req: AuthRequest, res: Response) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+
+    const universityId = Number(req.params.id);
+    if (!universityId) return res.status(400).json({ error: 'Invalid university ID' });
+
+    const { rating, review_text } = req.body;
+
+    try {
+        const result = await pool.query(
+            'INSERT INTO university_reviews (user_id, university_id, rating, review_text) VALUES ($1, $2, $3, $4) RETURNING *',
+            [req.userId, universityId, rating, review_text || null]
+        );
+        return res.status(201).json(result.rows[0]);
+    } catch (err) {
+        console.error('Create university review error', err);
+        return res.status(500).json({ error: 'Insert failed', details: String(err) });
+    }
+});
+
+// ========== COURSE REVIEWS ROUTES ==========
+
+// Create course review (protected)
+app.post('/courses/:id/reviews', authMiddleware, [
+    body('rating').isFloat({ min: 1, max: 5 }).withMessage('Rating must be between 1 and 5'),
+    body('enjoyability').isFloat({ min: 1, max: 5 }).withMessage('Enjoyability must be between 1 and 5'),
+    body('difficulty').isFloat({ min: 1, max: 5 }).withMessage('Difficulty must be between 1 and 5'),
+    body('review_text').optional().isString()
+], async (req: AuthRequest, res: Response) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+
+    const courseId = Number(req.params.id);
+    if (!courseId) return res.status(400).json({ error: 'Invalid course ID' });
+
+    const { rating, enjoyability, difficulty, review_text } = req.body;
+
+    try {
+        const result = await pool.query(
+            `INSERT INTO course_reviews (user_id, course_id, rating, enjoyability, difficulty, review_text) 
+             VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+            [req.userId, courseId, rating, enjoyability, difficulty, review_text || null]
+        );
+        return res.status(201).json(result.rows[0]);
+    } catch (err) {
+        console.error('Create course review error', err);
+        return res.status(500).json({ error: 'Insert failed', details: String(err) });
+    }
+});
+
 // Simple DB test endpoint - returns server time from Postgres
 app.get('/db-time', async (_req, res) => {
     try {

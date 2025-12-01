@@ -7,13 +7,19 @@ import ProfilesList from "./components/ProfilesList.tsx";
 import ProfileView from "./components/ProfileView.tsx";
 import CreateProfile from "./components/CreateProfile.tsx";
 import EditProfile from "./components/EditProfile.tsx";
+import Search from "./components/Search.tsx";
+import UniversityView from "./components/UniversityView.tsx";
+import CourseView from "./components/CourseView.tsx";
 import { api } from "./api";
 
 type View =
   | { name: "list" }
   | { name: "create" }
   | { name: "edit" }
-  | { name: "profile"; id: number };
+  | { name: "profile"; id: number }
+  | { name: "search" }
+  | { name: "university"; id: number }
+  | { name: "course"; id: number };
 
 type AuthView = "login" | "signup";
 
@@ -80,9 +86,15 @@ function MainApp() {
           </span>
           <button
             className="px-3 py-1 rounded bg-sky-600 text-white hover:bg-sky-700"
+            onClick={() => setView({ name: "search" })}
+          >
+            Search
+          </button>
+          <button
+            className="px-3 py-1 rounded border border-slate-200 bg-white hover:bg-slate-50"
             onClick={() => setView({ name: "list" })}
           >
-            Browse
+            Browse Profiles
           </button>
           {hasProfile ? (
             <>
@@ -114,6 +126,14 @@ function MainApp() {
       </header>
 
       <main className="main">
+        {view.name === "search" && (
+          <Search
+            onViewProfile={(id) => setView({ name: "profile", id })}
+            onViewUniversity={(id) => setView({ name: "university", id })}
+            onViewCourse={(id) => setView({ name: "course", id })}
+          />
+        )}
+
         {view.name === "list" && (
           <ProfilesList
             onOpenProfile={(id) => setView({ name: "profile", id })}
@@ -134,9 +154,25 @@ function MainApp() {
         {view.name === "profile" && (
           <ProfileView
             id={view.id}
-            onBack={() => setView({ name: "list" })}
+            onBack={() => setView({ name: "search" })}
             isOwnProfile={view.id === userProfileId}
             onEdit={() => setView({ name: "edit" })}
+          />
+        )}
+
+        {view.name === "university" && (
+          <UniversityView
+            id={view.id}
+            onBack={() => setView({ name: "search" })}
+            onViewCourse={(id) => setView({ name: "course", id })}
+          />
+        )}
+
+        {view.name === "course" && (
+          <CourseView
+            id={view.id}
+            onBack={() => setView({ name: "search" })}
+            onViewUniversity={(id) => setView({ name: "university", id })}
           />
         )}
       </main>
