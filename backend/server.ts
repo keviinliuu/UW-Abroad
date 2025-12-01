@@ -370,11 +370,15 @@ app.put('/profiles/me', authMiddleware, async (req: AuthRequest, res: Response) 
 
 // List profiles with filters
 app.get('/profiles', async (req: Request, res: Response) => {
-    const { university, city, term, language, min_budget, max_budget, limit = '25', offset = '0' } = req.query as any;
+    const { search, university, city, term, language, min_budget, max_budget, limit = '25', offset = '0' } = req.query as any;
     const where: string[] = [];
     const params: any[] = [];
     let idx = 1;
 
+    if (search) { 
+        where.push(`name ILIKE $${idx++}`); 
+        params.push(`%${search}%`); 
+    }
     if (university) { where.push(`university ILIKE $${idx++}`); params.push(`%${university}%`); }
     if (city) { where.push(`city ILIKE $${idx++}`); params.push(`%${city}%`); }
     if (term) { where.push(`term = $${idx++}`); params.push(term); }

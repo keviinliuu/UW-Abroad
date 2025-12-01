@@ -118,11 +118,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const error = await response.json();
       throw new Error(error.error || error.errors?.[0]?.msg || "Signup failed");
     }
-
-    const data = await response.json();
-    setToken(data.token);
-    setUser(data.user);
-    localStorage.setItem("token", data.token);
+    // Do not auto-login after signup; simply resolve.
+    // Optionally, we could read the response to show a success message.
+    // await response.json();
   };
 
   const logout = () => {

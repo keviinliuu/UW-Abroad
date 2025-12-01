@@ -48,7 +48,13 @@ export default function ProfilesList({
         <div className="text-sm text-slate-500">{profiles.length} results</div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          load();
+        }}
+        className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4"
+      >
         <input
           className="border rounded px-3 py-2 w-full"
           placeholder="university"
@@ -69,13 +75,13 @@ export default function ProfilesList({
         />
         <div className="flex gap-2">
           <button
+            type="submit"
             className="px-3 py-2 rounded bg-sky-600 text-white hover:bg-sky-700"
-            onClick={load}
           >
             Search
           </button>
         </div>
-      </div>
+      </form>
 
       {loading ? (
         <p>Loading…</p>
@@ -84,18 +90,17 @@ export default function ProfilesList({
           {profiles.map((p) => (
             <div
               key={p.id}
-              className="p-4 bg-white border rounded shadow-sm flex items-center justify-between"
+              className="p-4 bg-white border rounded shadow-sm flex items-start justify-between hover:bg-gray-50 transition-colors"
             >
-              <div>
-                <div className="font-semibold">{p.name}</div>
+              <div className="flex-1 min-w-0">
+                <div className="font-semibold text-gray-800 mb-1">{p.name}</div>
                 <div className="text-sm text-slate-600">
                   {p.university} · {p.city ?? "—"} · {p.term}
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <div className="text-sm text-slate-700">{p.budget ?? "—"}</div>
+              <div className="flex items-center gap-3 ml-4 flex-shrink-0">
                 <button
-                  className="px-3 py-1 border rounded text-sm"
+                  className="px-3 py-1 border rounded text-sm hover:bg-gray-100"
                   onClick={() => onOpenProfile(p.id)}
                 >
                   Open

@@ -1,5 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { api } from "../api";
+
+type University = {
+  id: number;
+  name: string;
+  city?: string;
+  country?: string;
+};
 
 export default function CreateProfile({
   onCreated,
@@ -8,6 +15,41 @@ export default function CreateProfile({
 }) {
   const [form, setForm] = useState<any>({ name: "", university: "", term: "" });
   const [loading, setLoading] = useState(false);
+  const [universities, setUniversities] = useState<University[]>([]);
+  const [loadingUniversities, setLoadingUniversities] = useState(true);
+
+  useEffect(() => {
+    const fetchUniversities = async () => {
+      try {
+        const result = await api<{ count: number; universities: University[] }>(
+          "/universities?limit=100"
+        );
+        setUniversities(result.universities || []);
+      } catch (err) {
+        console.error("Failed to fetch universities:", err);
+        alert("Failed to load universities");
+      } finally {
+        setLoadingUniversities(false);
+      }
+    };
+    fetchUniversities();
+  }, []);
+
+  const handleUniversityChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const universityId = Number(e.target.value);
+    const selectedUni = universities.find((u) => u.id === universityId);
+
+    if (selectedUni) {
+      setForm({
+        ...form,
+        university: selectedUni.name,
+        city: selectedUni.city || "",
+        country: selectedUni.country || "",
+      });
+    } else {
+      setForm({ ...form, university: "", city: "", country: "" });
+    }
+  };
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -45,15 +87,30 @@ export default function CreateProfile({
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            University
+            University *
           </label>
-          <input
-            className="w-full border border-gray-300 px-3 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500"
-            placeholder="University of Washington"
-            value={form.university}
-            onChange={(e) => setForm({ ...form, university: e.target.value })}
-            required
-          />
+          {loadingUniversities ? (
+            <div className="w-full border border-gray-300 px-3 py-2 rounded-md text-gray-500">
+              Loading universities...
+            </div>
+          ) : (
+            <select
+              className="w-full border border-gray-300 px-3 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500"
+              value={
+                universities.find((u) => u.name === form.university)?.id || ""
+              }
+              onChange={handleUniversityChange}
+              required
+            >
+              <option value="">Select a university</option>
+              {universities.map((uni) => (
+                <option key={uni.id} value={uni.id}>
+                  {uni.name}
+                  {uni.city && uni.country && ` - ${uni.city}, ${uni.country}`}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-4">
@@ -62,10 +119,11 @@ export default function CreateProfile({
               City
             </label>
             <input
-              className="w-full border border-gray-300 px-3 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500"
-              placeholder="Barcelona"
+              className="w-full border border-gray-300 px-3 py-2 rounded-md bg-gray-50 focus:outline-none focus:ring-2 focus:ring-sky-500"
+              placeholder="Auto-filled from university"
               value={form.city || ""}
               onChange={(e) => setForm({ ...form, city: e.target.value })}
+              readOnly
             />
           </div>
           <div>
@@ -73,10 +131,11 @@ export default function CreateProfile({
               Country
             </label>
             <input
-              className="w-full border border-gray-300 px-3 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500"
-              placeholder="Spain"
+              className="w-full border border-gray-300 px-3 py-2 rounded-md bg-gray-50 focus:outline-none focus:ring-2 focus:ring-sky-500"
+              placeholder="Auto-filled from university"
               value={form.country || ""}
               onChange={(e) => setForm({ ...form, country: e.target.value })}
+              readOnly
             />
           </div>
         </div>

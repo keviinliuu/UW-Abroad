@@ -31,10 +31,12 @@ export default function UniversityView({
   id,
   onBack,
   onViewCourse,
+  onRequestLogin,
 }: {
   id: number;
   onBack: () => void;
   onViewCourse: (id: number) => void;
+  onRequestLogin?: () => void;
 }) {
   const { user } = useAuth();
   const [university, setUniversity] = useState<University | null>(null);
@@ -60,8 +62,9 @@ export default function UniversityView({
       setCourses(result.courses || []);
       setAverageRating(result.averageRating);
     } catch (err) {
-      console.error(err);
-      alert("Failed to load university");
+      console.error("Error loading university:", err);
+      alert("Failed to load university: " + String(err));
+      setUniversity(null);
     } finally {
       setLoading(false);
     }
@@ -168,12 +171,21 @@ export default function UniversityView({
       <div className="bg-white rounded-lg shadow p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-2xl font-semibold text-gray-800">Reviews</h2>
-          {user && !showReviewForm && (
+          {user ? (
+            !showReviewForm && (
+              <button
+                onClick={() => setShowReviewForm(true)}
+                className="px-4 py-2 bg-sky-600 text-white rounded-md hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
+              >
+                Write a Review
+              </button>
+            )
+          ) : (
             <button
-              onClick={() => setShowReviewForm(true)}
+              onClick={onRequestLogin}
               className="px-4 py-2 bg-sky-600 text-white rounded-md hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
             >
-              Write a Review
+              Login to Write a Review
             </button>
           )}
         </div>
@@ -254,7 +266,7 @@ export default function UniversityView({
                     </div>
                     <div className="flex items-center gap-2 mt-1">
                       <span className="text-lg font-semibold text-sky-600">
-                        {review.rating.toFixed(1)}
+                        {Number(review.rating).toFixed(1)}
                       </span>
                       <span className="text-sm text-gray-500">/ 5.0</span>
                     </div>

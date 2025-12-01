@@ -35,10 +35,12 @@ export default function CourseView({
   id,
   onBack,
   onViewUniversity,
+  onRequestLogin,
 }: {
   id: number;
   onBack: () => void;
   onViewUniversity: (id: number) => void;
+  onRequestLogin?: () => void;
 }) {
   const { user } = useAuth();
   const [course, setCourse] = useState<Course | null>(null);
@@ -182,12 +184,21 @@ export default function CourseView({
           <h2 className="text-2xl font-semibold text-gray-800">
             Reviews ({reviews.length})
           </h2>
-          {user && !showReviewForm && (
+          {user ? (
+            !showReviewForm && (
+              <button
+                onClick={() => setShowReviewForm(true)}
+                className="px-4 py-2 bg-sky-600 text-white rounded-md hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
+              >
+                Write a Review
+              </button>
+            )
+          ) : (
             <button
-              onClick={() => setShowReviewForm(true)}
+              onClick={onRequestLogin}
               className="px-4 py-2 bg-sky-600 text-white rounded-md hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
             >
-              Write a Review
+              Login to Write a Review
             </button>
           )}
         </div>
@@ -329,19 +340,19 @@ export default function CourseView({
                   <div className="text-sm">
                     <span className="text-gray-600">Rating:</span>{" "}
                     <span className="font-semibold text-sky-600">
-                      {review.rating.toFixed(1)}
+                      {Number(review.rating).toFixed(1)}
                     </span>
                   </div>
                   <div className="text-sm">
                     <span className="text-gray-600">Enjoyability:</span>{" "}
                     <span className="font-semibold text-green-600">
-                      {review.enjoyability.toFixed(1)}
+                      {Number(review.enjoyability).toFixed(1)}
                     </span>
                   </div>
                   <div className="text-sm">
                     <span className="text-gray-600">Difficulty:</span>{" "}
                     <span className="font-semibold text-orange-600">
-                      {review.difficulty.toFixed(1)}
+                      {Number(review.difficulty).toFixed(1)}
                     </span>
                   </div>
                 </div>
